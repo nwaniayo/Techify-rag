@@ -149,7 +149,7 @@ Maintain a friendly, professional, and empathetic tone throughout the conversati
 """
 
     stream = openrouter_client.chat.completions.create(
-        model="google/gemma-2-9b-it:free",
+        model="google/gemma-7b-it:free",
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": augmented_query}
