@@ -12,6 +12,7 @@ from openai import OpenAI
 from langchain_community.document_loaders import YoutubeLoader, PyPDFLoader, TextLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 import tiktoken
+import json
 from typing import List
 from fastapi.responses import StreamingResponse
 
@@ -261,21 +262,21 @@ async def ingest_text(file: UploadFile = File(...)):
             buffer.write(await file.read())
 
         print(f"Uploaded text file saved at: {temp_file_path}")
-
+        
         # Load text file
         loader = TextLoader(temp_file_path)
         data = loader.load()
 
         print(f"Loaded text data: {data}")
-
+        
         # Split the text content into chunks
         texts = text_splitter.split_documents(data)
 
         print(f"Split texts: {texts}")
-
+        
         # Insert chunks into Pinecone
         vectorstore_from_texts = PineconeVectorStore.from_texts(
-            [f"Source: Text file - {file.filename} \n\nContent: {t.page_content}" for t in texts],
+            [f"Source: Text File - {file.filename} \n\nContent: {t.page_content}" for t in texts],
             hf_embeddings,
             index_name="rag",
             namespace="text-documents"
@@ -288,4 +289,43 @@ async def ingest_text(file: UploadFile = File(...)):
         return {"message": f"Successfully ingested text file: {file.filename}"}
     except Exception as e:
         print(f"Error in /ingest_text endpoint: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/ingest_json")
+async def ingest_json(file: UploadFile = File(...)):
+    try:
+        # Save the uploaded file temporarily
+        temp_file_path = f"temp_{file.filename}"
+        with open(temp_file_path, "wb") as buffer:
+            buffer.write(await file.read())
+
+        print(f"Uploaded JSON file saved at: {temp_file_path}")
+        
+        # Load JSON content
+        with open(temp_file_path, "r") as f:
+            json_data = json.load(f)
+
+        # Assuming the JSON structure contains a key like 'content' that holds the text to be ingested
+        json_text = json.dumps(json_data, indent=2)
+        
+        # Split the JSON content into chunks
+        texts = text_splitter.split_text(json_text)
+
+        print(f"Split texts: {texts}")
+        
+        # Insert chunks into Pinecone
+        vectorstore_from_texts = PineconeVectorStore.from_texts(
+            [f"Source: JSON File - {file.filename} \n\nContent: {text}" for text in texts],
+            hf_embeddings,
+            index_name="rag",
+            namespace="json-documents"
+        )
+        
+        # Remove temporary file
+        os.remove(temp_file_path)
+        print(f"Temporary file {temp_file_path} removed.")
+        
+        return {"message": f"Successfully ingested JSON file: {file.filename}"}
+    except Exception as e:
+        print(f"Error in /ingest_json endpoint: {e}")
         raise HTTPException(status_code=500, detail=str(e))
