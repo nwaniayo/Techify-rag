@@ -317,7 +317,7 @@ async def ingest_json(file: UploadFile = File(...)):
         vectorstore_from_texts = PineconeVectorStore.from_texts(
             [f"Source: JSON File - {file.filename} \n\nContent: {text}" for text in texts],
             hf_embeddings,
-            index_name="rag",
+            index_name="json",
             namespace="json-documents"
         )
         
